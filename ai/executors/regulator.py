@@ -5,9 +5,10 @@ import time
 
 from RULEngine.Util.Pose import Pose
 from RULEngine.Util.Position import Position
-from RULEngine.Util.game_world import GameWorld
 from ai.Util.ai_command import AICommandType
 from ai.executors.executor import Executor
+from ai.states.world_state import WorldState
+import numpy as np
 
 INTEGRAL_DECAY = 0.5 # reduit de moitié aux 1/8 de secondes
 ZERO_ACCUMULATOR_TRHESHOLD = 0.5
@@ -35,7 +36,7 @@ REAL_DEFAUT_INTEGRAL_THETA_GAIN = 0
 
 
 class PositionRegulator(Executor):
-    def __init__(self, p_world_state: GameWorld, is_simulation=False):
+    def __init__(self, p_world_state: WorldState, is_simulation=False):
         super().__init__(p_world_state)
         self.regulators = [PI(simulation_setting=is_simulation) for _ in range(6)]
         self.last_timestamp = 0

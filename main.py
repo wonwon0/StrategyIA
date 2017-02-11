@@ -7,7 +7,8 @@ from RULEngine.Communication.sender.serial_command_sender import SerialType, SER
 from RULEngine.Communication.util.serial_protocol import MCUVersion
 from RULEngine.Framework import Framework
 from RULEngine.Util.constant import TeamColor
-from coach import Coach
+
+from bb_coach import BBCoach
 
 __author__ = 'RoboCupULaval'
 
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     serial = get_serial(args.serial)
 
     simulation = serial == SERIAL_DISABLED
-    ai_coach = Coach(is_simulation=simulation)
+    ai_coach = BBCoach(is_simulation=simulation)
     framework = Framework(serial=serial, mcu_version=mcu)
     framework.start_game(ai_coach.main_loop, ai_coach.set_reference,
                          team_color=color, async=args.async)

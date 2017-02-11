@@ -17,9 +17,7 @@ class PathfinderModule(Executor):
 
     def exec(self):
         ai_commands = self._get_aicommand_that_need_path()
-        self._adjust_from_last_time_of_exec(ai_commands)
         self._pathfind_ai_commands(ai_commands)
-        # self._return_new_ai_commands(ai_commands)
 
     def _get_aicommand_that_need_path(self):
         aicommands_list = self.ws.play_state.current_ai_commands
@@ -31,18 +29,31 @@ class PathfinderModule(Executor):
 
         return aic_with_pathfinding_on
 
+    def _pathfind_ai_commands(self, ai_commands):
+        for ai_c in ai_commands:
+            path = self.pathfinder.get_path(ai_c.robot_id, ai_c.pose_goal)
+            self.draw_path(path)
+            ai_c.path = path
+
+    def draw_path(self, path, pid=0):
+        points = []
+        for path_element in path:
+            x = path_element.x
+            y = path_element.y
+            points.append((x, y))
+        self.debug_interface.add_multiple_points(points, COLOR_ID_MAP[pid], width=5, link="path - " + str(pid),
+                                                 timeout=DEFAULT_PATH_TIMEOUT)
+
+
+
+
+
     def _adjust_from_last_time_of_exec(self, ai_commands_to_adjust):
         pass
         if time.time() - self.last_frame > 10:
             self.last_frame = time.time()
             ai_commands_to_adjust.clear()
 
-
-    def _pathfind_ai_commands(self, ai_commands):
-        for ai_c in ai_commands:
-            path = self.pathfinder.get_path(ai_c.robot_id, ai_c.pose_goal)
-            self.draw_path(path)
-            ai_c.path = path
 
     def change_pathfinder(self, type_of_pathfinder):
         assert isinstance(type_of_pathfinder, str)
@@ -64,11 +75,3 @@ class PathfinderModule(Executor):
             raise TypeError("Couldn't init a pathfinder with the type of ",
                             type_of_pathfinder, "!")
 
-    def draw_path(self, path, pid=0):
-        points = []
-        for path_element in path:
-            x = path_element.x
-            y = path_element.y
-            points.append((x, y))
-        self.debug_interface.add_multiple_points(points, COLOR_ID_MAP[pid], width=5, link="path - " + str(pid),
-                                                 timeout=DEFAULT_PATH_TIMEOUT)

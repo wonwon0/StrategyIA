@@ -11,6 +11,7 @@ class MovementExecutor(Executor):
 
     def exec(self):
         self._simple_advance_path()
+        self._sanity_check_of_speed_command
 
     def _simple_advance_path(self):
         current_ai_c = self.ws.play_state.current_ai_commands
@@ -20,3 +21,9 @@ class MovementExecutor(Executor):
                 next_point = ai_c.path[0]
                 # TODO ORIENTATION! PLEASES!
                 ai_c.pose_goal = Pose(next_point, 0)
+                ai_c.speed = Pose(next_point, 0)
+
+    def _sanity_check_of_speed_command(self):
+        for ai_c in self.ws.play_state.current_ai_commands.values():
+            if ai_c.speed is None:
+                ai_c.speed = ai_c.pose_goal

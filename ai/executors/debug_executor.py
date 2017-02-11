@@ -1,72 +1,44 @@
 # Under MIT License, see LICENSE.txt
 
-import copy
-
 from RULEngine.Debug.ui_debug_command import UIDebugCommand
 from RULEngine.Util.Pose import Pose, Position
-from ai.STA.Strategy.HumanControl import HumanControl
+from RULEngine.Util.game_world import GameWorld
 from ai.executors.executor import Executor
+from ai.states.world_state import WorldState
 
 
 class DebugExecutor(Executor):
 
-    def __init__(self, p_world_state):
+    def __init__(self, p_world_state: WorldState):
         super().__init__(p_world_state)
+        self.debug_in = None
+        self.our_transformed_incoming_debug = []
 
-    def exec(self):
-        self._execute_incoming_debug_commands()
+    def exec(self)->None:
+        for command in self.debug_in:
+            self._parse_command(UIDebugCommand(command))
 
-    def _execute_incoming_debug_commands(self):
-        for command in self.ws.debug_state.from_ui_debug_commands:
-            self.ws.debug_state.transformed_ui_debug_commands.\
-                append(UIDebugCommand(command))
-        self.ws.debug_state.from_ui_debug_commands.clear()
+    def set_reference(self, world_reference: GameWorld)->None:
+        self.debug_in = world_reference.debug_info
 
-        self._apply_incoming_debug_command()
-
-    def _apply_incoming_debug_command(self):
-        for command in self.ws.debug_state.transformed_ui_debug_commands:
-            self._parse_command(command)
-
-    def _parse_command(self, cmd):
-        if cmd.is_strategy_cmd():
-            self._parse_strategy(cmd)
-
-        elif cmd.is_tactic_cmd():
+    def _parse_command(self, cmd: UIDebugCommand)->None:
+        if cmd.is_tactic_cmd():
             self._parse_tactic(cmd)
 
-        else:
-            pass
-
-    def _parse_strategy(self, cmd):
-        # TODO revise this function please, thank you!
-        # TODO change this once UI-Debug send correct strategy names!
-
-        strategy_key = cmd.data['strategy']
-
-        if strategy_key == 'pStop':
-            self.ws.play_state.set_strategy(self.ws.play_state.
-                                            get_new_strategy("DoNothing")
-                                            (self.ws.game_state))
-
-        else:
-            self.ws.play_state.set_strategy(self.ws.play_state.
-                                            get_new_strategy(strategy_key)
-                                            (self.ws.game_state))
-
-    def _parse_tactic(self, cmd):
-        # TODO make implementation for other tactic packets!
-        # FIXME this pid thingy is getting out of control
+    def _parse_tactic(self, cmd: UIDebugCommand)->None:
+        # probably useless
         player_id = self._sanitize_pid(cmd.data['id'])
-        tactic_name = cmd.data['tactic']
 
-        # TODO ui must send better packets back with the args.
+        # required to read the packet from the UIDebug
+        tactic_name = cmd.data['tactic']
         target = cmd.data['target']
         target = Pose(Position(target[0], target[1]))
+        # Default tactic if something goes wrong
         tactic = self.ws.play_state.get_new_tactic('Idle')(self.ws.game_state,
                                                            player_id,
                                                            target)
         try:
+            # create the new tactic
             tactic = self.ws.play_state.get_new_tactic(tactic_name)\
                 (self.ws.game_state, player_id, target)
         except Exception as e:
@@ -74,17 +46,11 @@ class DebugExecutor(Executor):
             print("La tactique n'a pas été appliquée par "
                   "cause de mauvais arguments.")
 
-        if isinstance(self.ws.play_state.current_strategy, HumanControl):
-            hc = self.ws.play_state.current_strategy
-            hc.assign_tactic(tactic, player_id)
-        else:
-            hc = HumanControl(self.ws.game_state)
-            hc.assign_tactic(tactic, player_id)
-            self.ws.play_state.set_strategy(hc)
+        # put the new tactic in
+        self.ws.play_state.current_tactic[player_id] = tactic
 
     @staticmethod
-    def _sanitize_pid(pid):
-        # TODO find something better for this whole scheme
+    def _sanitize_pid(pid: int)->int:
         if 0 <= pid < 6:
             return pid
         elif 6 <= pid < 12:
