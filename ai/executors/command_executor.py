@@ -34,8 +34,9 @@ class CommandExecutor():
                 return self._generate_kick_command(player_id)
 
             elif ai_command.command == AICommandType.MOVE:
-                assert (isinstance(ai_command.pose_goal, Pose))
-                return self._generate_move_command(ai_command.pose_goal, player_id)
+                assert (isinstance(ai_command.speed, Pose))
+                print(ai_command.pose_goal, "  -  ", ai_command.speed)
+                return self._generate_move_command(ai_command.speed, player_id)
 
         return self._generate_empty_command(player_id)
 
