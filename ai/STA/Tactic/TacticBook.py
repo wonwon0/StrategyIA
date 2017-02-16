@@ -14,15 +14,9 @@ from .go_kick import GoKick
 
 class TacticBook(object):
     def __init__(self):
-        self.tactic_book = {'GoToPosition': GoToPosition,
-                            'GoalKeeper': GoalKeeper,
-                            'CoverZone': ProtectZone,
-                            'GoGetBall': GoGetBall,
-                            'DemoFollowBall': DemoFollowBall,
-                            'Stop': Stop,
+        self.tactic_book = {'Stop': Stop,
                             'GoToPositionNoPathfinder': GoToPositionNoPathfinder,
-                            'GoToPositionPathfinder': GoToPositionPathfinder,
-                            'GoKick': GoKick}
+                            'GoToPositionPathfinder': GoToPositionPathfinder}
 
     def get_tactics_name_list(self):
         return list(self.tactic_book.keys())
