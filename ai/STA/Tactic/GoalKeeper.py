@@ -57,10 +57,10 @@ class GoalKeeper(Tactic):
     def go_behind_ball(self):
         ball_position = self.game_state.get_ball_position()
 
-        if can_get_ball(self.game_state, self.player_id, ball_position):
-            self.next_state = self.grab_ball
-        else:
-            self.next_state = self.go_behind_ball
+        # if can_get_ball(self.game_state, self.player_id, ball_position):
+        #     self.next_state = self.grab_ball
+        # else:
+        self.next_state = self.go_behind_ball
 
         return GoBehind(self.game_state, self.player_id, ball_position, Position(0, 0), DISTANCE_BEHIND)
 
