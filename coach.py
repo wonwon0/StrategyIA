@@ -14,7 +14,7 @@ TIMESTAMP_MINIMAL_DELTA_30_FPS = 0.033
 
 class Coach(object):
 
-    def __init__(self, mode_debug_active=True, pathfinder="astar", is_simulation=True):
+    def __init__(self, mode_debug_active=True, pathfinder="path_part", is_simulation=True):
         self.mode_debug_active = mode_debug_active
         self.is_simulation = is_simulation
         # For the framework! TODO make this better!

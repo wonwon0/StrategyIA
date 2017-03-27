@@ -1,3 +1,4 @@
+from RULEngine.Util.Pose import Pose
 from RULEngine.Util.Position import Position
 from RULEngine.Util.geometry import get_distance, conv_position_2_list
 from ai.Algorithm.IntelligentModule import Pathfinder
@@ -6,16 +7,18 @@ import numpy as np
 
 
 class Path:
-    def __init__(self, start = Position(),  end = Position()):
+    def __init__(self, start=Position(),  end=Position()):
 
         self.start = start
         self.goal = end
-        self.points = [start,end]
+        self.points = [end]
 
-    def join_segments(self,other):
-        self.points = self.points.append(other.points[1:])
-        self.start = self.start
-        self.goal = self.points[-1]
+    def join_segments(self, other):
+        new_path = Path()
+        new_path.points = self.points[1:]+other.points[1:]
+        new_path.start = self.start
+        new_path.goal = other.points[-1]
+        return new_path
 
 
 class PathPartitionner(Pathfinder):
@@ -23,48 +26,58 @@ class PathPartitionner(Pathfinder):
         super().__init__(p_worldstate)
         self.p_worldstate = p_worldstate
         self.game_state = self.p_worldstate.game_state
-        self.path = Path(Position(),Position())
-        self.res = 20
-        self.gap_proxy = 400
+        self.path = Path(Position(0, 0), Position(0, 0))
+        self.res = 100
+        self.gap_proxy = 300
         self.max_recurs = 4
         self.pose_obstacle = []
 
-    def init_path(self, player_id, pose_target):
-        self.path.start = self.game_state.get_player_pose(player_id).position
-        self.path.goal = pose_target.position
-        self.path.points = [self.path.start,self.path.goal]
-        for player in self.game_state.game.friends.players:
-            if player.id == player_id:
-                pass
-            else:
-                self.pose_obstacle.append(self.game_state.get_player_pose(player.id).position)
-        for player in self.game_state.game.enemies.players:
-            if player.id == player_id:
-                pass
-            else:
-                self.pose_obstacle.append(self.game_state.get_player_pose(player.id).position)
+    def fastpathplanner(self, path, depth=0, avoid_dir=np.nan):
+        collision_bool = self.is_path_collide(path)
+        if collision_bool and depth < self.max_recurs:
+            [sub_target, avoid_dir] = self.search_point(path, avoid_dir)
+            path_1 = Path(path.start, sub_target)
+            path_1 = self.fastpathplanner(path_1, depth + 1, avoid_dir)
+            path_2 = Path(sub_target, path.goal)
+            path_2 = self.fastpathplanner(path_2, depth + 1, avoid_dir)
+            path = path_1.join_segments(path_2)
+        return path
 
-    def is_path_collide (self,path, pose_obstacle = None):
+    def get_path(self, player_id=0, pose_target=Pose()):
+        self.path = Path(self.game_state.get_player_pose(player_id).position, pose_target.position)
+        for player in self.game_state.game.friends.players.values():
+            if player.id == player_id:
+                pass
+            else:
+                self.pose_obstacle += [self.game_state.get_player_pose(player.id).position]
+        for player in self.game_state.game.enemies.players.values():
+            if player.id == player_id:
+                pass
+            else:
+                self.pose_obstacle += [self.game_state.get_player_pose(player.id).position]
+        return self.fastpathplanner(self.path).points
+
+    def is_path_collide(self, path, pose_obstacle=None):
         collision_bool = 0
         if pose_obstacle is None:
             pose_obstacle = self.pose_obstacle
         if not pose_obstacle:
             return collision_bool
-        if get_distance(path.start,path.goal)  < 0.001:
+        if get_distance(path.start, path.goal) < 0.001:
             return collision_bool
-        direction = np.array(conv_position_2_list(path.goal - path.start) / get_distance(path.goal, path.start))
+        direction = np.array(conv_position_2_list(path.goal - path.start)) / get_distance(path.goal, path.start)
         for pose_obs in pose_obstacle:
             vec_robot_2_obs_temp = np.array(conv_position_2_list(pose_obs - path.start))
-            len_along_path_temp = vec_robot_2_obs_temp * np.transpose(direction)
-            dist_from_path_temp = np.sqrt(np.linalg.norm(vec_robot_2_obs_temp) ^ 2 - len_along_path_temp ^ 2)
-            if self.gap_proxy > dist_from_path_temp & len_along_path_temp > 0:
+            len_along_path_temp = np.dot(vec_robot_2_obs_temp, np.transpose(direction))
+            dist_from_path_temp = np.sqrt(np.linalg.norm(vec_robot_2_obs_temp)**2 - len_along_path_temp**2)
+            if self.gap_proxy > dist_from_path_temp and len_along_path_temp > 0:
                 collision_bool = 1
-                return collision_bool
+        return collision_bool
 
-    def find_closest_obstacle(self, point, path,):
+    def find_closest_obstacle(self, point, path):
         pose_obstacle_col = []
         for pose_obs in self.pose_obstacle:
-            if self.is_path_collide(Path(path.start, point), pose_obs):
+            if self.is_path_collide(Path(path.start, point), [pose_obs]):
                 pose_obstacle_col.append(pose_obs)
         if not pose_obstacle_col:
             closest_obs = np.math.nan
@@ -79,54 +92,54 @@ class PathPartitionner(Pathfinder):
         return [closest_obs, dist_point_obs]
 
     def verify_sub_target(self, sub_target):
-        bool = 0
+        bool_loc = 0
         for pose_obs in self.pose_obstacle:
             dist_sub_2_obs = get_distance(pose_obs, sub_target)
             if dist_sub_2_obs < self.gap_proxy:
-                bool = 1
-                return bool
-        return bool
+                bool_loc = 1
+                return bool_loc
+        return bool_loc
 
-    def search_point(self,path, avoid_dir = np.nan):
+    def search_point(self, path, avoid_dir=np.nan):
         pose_robot = path.start
         pose_target = path.goal
         pose_obstacle_closest = self.find_closest_obstacle(pose_target, path)[0]
-        if np.isnan(pose_obstacle_closest):
+        if pose_obstacle_closest is np.nan:
             sub_target = pose_target
             return sub_target
 
-        direction = np.array(conv_position_2_list(pose_target - pose_robot) / get_distance(pose_target, pose_robot))
+        direction = np.array(conv_position_2_list(pose_target - pose_robot)) / get_distance(pose_target, pose_robot)
         vec_robot_2_obs = np.array(conv_position_2_list(pose_obstacle_closest - pose_robot))
-        len_along_path = vec_robot_2_obs * np.transpose(direction)
+        len_along_path = np.dot(vec_robot_2_obs, np.transpose(direction))
 
-        if len_along_path > 0 & len_along_path < get_distance(pose_target - pose_robot):
-            vec_perp = np.cross([np.append(direction, 0)], [0, 0, 1])
+        if len_along_path > 0 and len_along_path < get_distance(pose_target, pose_robot):
+            vec_perp = np.cross(np.append(direction, 0), np.array([0, 0, 1]))
             vec_perp = vec_perp[0:2]
 
-            if np.isnan(avoid_dir):
-                sub_target_1 = conv_position_2_list(pose_robot) + direction * len_along_path + vec_perp * self.res
-                sub_target_2 = conv_position_2_list(pose_robot) + direction * len_along_path - vec_perp * self.res
-                bool_sub_target_1 = self.verify_sub_target(sub_target_1)
-                bool_sub_target_2 = self.verify_sub_target(sub_target_2)
+            if avoid_dir is np.nan:
+                sub_target_1 = np.array(conv_position_2_list(pose_robot)) + direction * len_along_path + vec_perp * self.res
+                sub_target_2 = np.array(conv_position_2_list(pose_robot)) + direction * len_along_path - vec_perp * self.res
+                bool_sub_target_1 = self.verify_sub_target(Position(sub_target_1[0], sub_target_1[1]))
+                bool_sub_target_2 = self.verify_sub_target(Position(sub_target_2[0], sub_target_2[1]))
                 while bool_sub_target_1:
                     sub_target_1 += vec_perp * self.res
-                    bool_sub_target_1 = self.verify_sub_target(sub_target_1)
+                    bool_sub_target_1 = self.verify_sub_target(Position(sub_target_1[0], sub_target_1[1]))
 
                 sub_target_1 += vec_perp * 0.01 * self.res
                 while bool_sub_target_2:
 
                     sub_target_2 -= vec_perp * self.res
-                    bool_sub_target_2 = self.verify_sub_target(sub_target_2)
+                    bool_sub_target_2 = self.verify_sub_target(Position(sub_target_2[0], sub_target_2[1]))
 
                 sub_target_2 -= vec_perp * 0.01 * self.res
 
-                if abs(get_distance(path.start, sub_target_1) - get_distance(path.start, sub_target_2)) < 600:
+                if abs(get_distance(path.start, Position(sub_target_1[0], sub_target_1[1])) - get_distance(path.start, Position(sub_target_2[0], sub_target_2[1]))) < 600:
 
                     sub_target = sub_target_1
                     avoid_dir = -vec_perp
 
                 else:
-                    if get_distance(path.start, sub_target_1) < get_distance(path.start, sub_target_2):
+                    if get_distance(path.start, Position(sub_target_1[0], sub_target_1[1])) < get_distance(path.start, Position(sub_target_2[0], sub_target_2[1])):
                         sub_target = sub_target_1
                         avoid_dir = -vec_perp
 
@@ -135,25 +148,28 @@ class PathPartitionner(Pathfinder):
                         avoid_dir = vec_perp
 
             else:
-                if avoid_dir * np.transpose(vec_perp) < 0:
+                if np.dot(avoid_dir, np.transpose(vec_perp)) < 0:
                     vec_perp = -vec_perp
-                    sub_target = conv_position_2_list(pose_robot) + direction * len_along_path + vec_perp * self.res
+                sub_target = np.array(conv_position_2_list(pose_robot)) + direction * len_along_path + vec_perp * self.res
 
-                bool_sub_target = self.verify_sub_target(sub_target)
+                bool_sub_target = self.verify_sub_target(Position(sub_target[0], sub_target[1]))
                 while bool_sub_target:
                     sub_target -= vec_perp * self.res
-                    bool_sub_target = self.verify_sub_target(sub_target)
+                    bool_sub_target = self.verify_sub_target(Position(sub_target[0], sub_target[1]))
+
 
                 sub_target -= vec_perp * 0.01 * self.res
                 avoid_dir = vec_perp
-
+            sub_target = Position(sub_target[0], sub_target[1])
         else:
             sub_target = pose_target
-
-        sub_target = Position(sub_target[0],sub_target[1])
-
         return [sub_target, avoid_dir]
 
+    def get_next_point(self, robot_id=None):
+        pass
+
+    def update(self):
+        pass
 
 
 

@@ -7,7 +7,7 @@ from ai.executors.executor import Executor
 from ai.Util.ai_command import AICommand
 from ai.Algorithm.CinePath.CinePath import CinePath
 from RULEngine.Util.geometry import get_distance
-
+from ai.executors.path_partitionner import PathPartitionner
 
 INTERMEDIATE_DISTANCE_THRESHOLD = 540
 
@@ -73,7 +73,7 @@ class PathfinderModule(Executor):
 
     def get_pathfinder(self, type_of_pathfinder, is_simulation):
         assert isinstance(type_of_pathfinder, str)
-        assert type_of_pathfinder.lower() in ["rrt", "astar"]
+        assert type_of_pathfinder.lower() in ["rrt", "astar", "path_part"]
 
         if type_of_pathfinder.lower() == "astar":
             # place pathfinder here
@@ -81,6 +81,9 @@ class PathfinderModule(Executor):
         elif type_of_pathfinder.lower() == "rrt":
             # place pathfinder here
             return PathfinderRRT(self.ws)
+        elif type_of_pathfinder.lower() == "path_part":
+            # place pathfinder here
+            return PathPartitionner(self.ws)
         else:
             raise TypeError("Couldn't init a pathfinder with the type of ",
                             type_of_pathfinder, "!")

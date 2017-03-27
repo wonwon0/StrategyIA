@@ -131,7 +131,7 @@ class PI(object):
         accel_pot_x, accel_pot_y = self._potential_field(cmd)
         r_x, r_y, r_theta = cmd.pose_goal.position.x, cmd.pose_goal.position.y, cmd.pose_goal.orientation
         t_x, t_y, t_theta = active_player.pose.position.x, active_player.pose.position.y, active_player.pose.orientation
-        print(r_x, r_y)
+        #print(r_x, r_y)
         # r_x += 1000 * accel_pot_x * delta_t ** 2
         # r_y += 1000 * accel_pot_y * delta_t ** 2
         # #self, point, color = VIOLET, width = 5, link = None, timeout = DEFAULT_DEBUG_TIMEOUT
@@ -342,11 +342,11 @@ def _correct_for_referential_frame(x, y, orientation):
 def _set_constants(simulation_setting):
     if simulation_setting:
         return {"ROBOT_NEAR_FORCE": 1000,
-                "ROBOT_VELOCITY_MAX": 4,
+                "ROBOT_VELOCITY_MAX": 0.2,
                 "ROBOT_ACC_MAX": 2,
-                "accel_max": 100,
-                "vit_max": 50,
-                "vit_min": 25,
+                "accel_max": 2,
+                "vit_max": 2,
+                "vit_min": 0,
                 "xyKp": 0.7,
                 "ki": 0.005,
                 "kd": 0.02,
