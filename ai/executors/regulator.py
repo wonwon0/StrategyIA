@@ -211,6 +211,7 @@ class PI(object):
             v_target_y = 0
         if abs(active_player.pose.orientation - r_theta) < 0.005:
             v_theta_target = 0
+        #print(v_target_x, v_target_y)
         #DebugInterface().add_log(1, "Accumulateur x/y -- t: {} -- {}".format(self.kiSum, self.thetaKiSum))
         #DebugInterface().add_log(1, "commands -- x: {} -- y{} -- th{}".format(v_target_x, v_target_y, v_theta_target))
         return Pose(Position(v_target_x, v_target_y), v_theta_target)
