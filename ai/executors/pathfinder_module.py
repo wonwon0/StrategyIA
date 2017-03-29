@@ -47,9 +47,9 @@ class PathfinderModule(Executor):
 
     def _pathfind_ai_commands(self, ai_commands):
         for ai_c in ai_commands:
-            #self.time = time.time()
+            self.time = time.time()
             path = self.pathfinder.get_path(ai_c.robot_id, ai_c.pose_goal)
-            #print(time.time() - self.time)
+            print(time.time() - self.time)
             self.draw_path(path)
             ai_c.path = path
 
@@ -85,8 +85,8 @@ class PathfinderModule(Executor):
             return PathfinderRRT(self.ws)
         elif type_of_pathfinder.lower() == "path_part":
             # place pathfinder here
-            #return PathPartitionner(self.ws)
-            return AsPathManager(self.ws, is_simulation)  # is_simulation)
+            return PathPartitionner(self.ws)
+            #return AsPathManager(self.ws, is_simulation)  # is_simulation)
         else:
             raise TypeError("Couldn't init a pathfinder with the type of ",
                             type_of_pathfinder, "!")
@@ -98,6 +98,6 @@ class PathfinderModule(Executor):
             x = path_element.x
             y = path_element.y
             points.append((x, y))
-        print(points)
+        #print(points)
         self.debug_interface.add_multiple_points(points, COLOR_ID_MAP[pid], width=5, link="path - " + str(pid),
                                                  timeout=DEFAULT_PATH_TIMEOUT)
