@@ -35,7 +35,6 @@ class PathPartitionner(Pathfinder):
         self.pose_obstacle = None
 
     def fastpathplanner(self, path, depth=0, avoid_dir=None):
-        #print(depth)
         if self.is_path_collide(path) and depth < self.max_recurs:
 
             [sub_target, avoid_dir] = self.search_point(path, avoid_dir)
@@ -53,18 +52,20 @@ class PathPartitionner(Pathfinder):
 
     def get_path(self, player_id=0, pose_target=Pose()):
         obstacles = self.game_state.game.friends.players.values()
+
         self.pose_obstacle = np.zeros((len(obstacles)-1, 2))
         self.path = Path(self.game_state.get_player_pose(player_id).position, pose_target.position)
-        for i, player in enumerate(obstacles):
+        i = 0
+        for player in obstacles:
             if player.id != player_id:
                 self.pose_obstacle[i, :] = player.pose.position.conv_2_np()
+                i += 1
         return self.fastpathplanner(self.path).points[1:]
 
     def is_path_collide(self, path):
-        dist = get_distance(path.start, path.goal)
+        dist = get_distance(path.goal, path.start)
         if dist < 0.001:
             return False
-        #direction = np.array(conv_position_2_list(path.goal - path.start)) / get_distance(path.goal, path.start)
         pose_start = path.start.conv_2_np()
         direction = (path.goal.conv_2_np() - pose_start) / dist
         for pose_obs in self.pose_obstacle:
@@ -78,37 +79,33 @@ class PathPartitionner(Pathfinder):
     def find_closest_obstacle(self, point, path):
 
         dist_point_obs = np.inf
-
         closest_obs = None
 
-        if self.pose_obstacle is None:
-            return [closest_obs, dist_point_obs]
         if get_distance(path.start, path.goal) < 0.001:
             return [closest_obs, dist_point_obs]
-        direction = np.array(conv_position_2_list(point - path.start)) / get_distance(point, path.start)
+        pose_start = path.start.conv_2_np()
+        direction = (point.conv_2_np() - pose_start) / get_distance(point, path.start)
         for pose_obs in self.pose_obstacle:
-            vec_robot_2_obs_temp = np.array(conv_position_2_list(pose_obs - path.start))
-            len_along_path_temp = np.dot(vec_robot_2_obs_temp, np.transpose(direction))
+            vec_robot_2_obs_temp = pose_obs - pose_start
+            len_along_path_temp = np.dot(vec_robot_2_obs_temp, direction)
             dist_from_path_temp = np.sqrt(np.linalg.norm(vec_robot_2_obs_temp) ** 2 - len_along_path_temp ** 2)
             if self.gap_proxy > dist_from_path_temp and len_along_path_temp > 0:
-                dist = get_distance(path.start, pose_obs)
+                obstacle_pos = Position.from_np(pose_obs)
+                dist = get_distance(path.start, obstacle_pos)
                 if dist < dist_point_obs:
                     dist_point_obs = dist
-                    closest_obs = pose_obs
+                    closest_obs = obstacle_pos
 
         return [closest_obs, dist_point_obs]
 
     def verify_sub_target(self, sub_target):
-        bool_loc = 0
         for pose_obs in self.pose_obstacle:
-            dist_sub_2_obs = get_distance(pose_obs, sub_target)
+            dist_sub_2_obs = get_distance(Position.from_np(pose_obs), sub_target)
             if dist_sub_2_obs < self.gap_proxy:
-                bool_loc = 1
-                return bool_loc
-        return bool_loc
+                return True
+        return False
 
     def search_point(self, path, avoid_dir=None):
-        self.time = time.time()
         pose_robot = path.start
         pose_target = path.goal
         pose_obstacle_closest = self.find_closest_obstacle(pose_target, path)[0]
@@ -173,7 +170,6 @@ class PathPartitionner(Pathfinder):
             sub_target = Position(sub_target[0], sub_target[1])
         else:
             sub_target = pose_target
-        print(time.time() - self.time)
         return [sub_target, avoid_dir]
 
     def get_next_point(self, robot_id=None):
