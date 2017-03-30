@@ -32,12 +32,11 @@ class PathPartitionner(Pathfinder):
         self.res = 100
         self.gap_proxy = 300
         self.max_recurs = 2
-        self.pose_obstacle = []
+        self.pose_obstacle = None
 
     def fastpathplanner(self, path, depth=0, avoid_dir=None):
-        collision_bool = self.is_path_collide(path)
         #print(depth)
-        if collision_bool and depth < self.max_recurs:
+        if self.is_path_collide(path) and depth < self.max_recurs:
 
             [sub_target, avoid_dir] = self.search_point(path, avoid_dir)
 
@@ -53,40 +52,28 @@ class PathPartitionner(Pathfinder):
         return path
 
     def get_path(self, player_id=0, pose_target=Pose()):
-
+        obstacles = self.game_state.game.friends.players.values()
+        self.pose_obstacle = np.zeros((len(obstacles)-1, 2))
         self.path = Path(self.game_state.get_player_pose(player_id).position, pose_target.position)
-
-        for player in self.game_state.game.friends.players.values():
-            if player.id == player_id:
-                pass
-            else:
-                self.pose_obstacle += [self.game_state.get_player_pose(player.id).position]
-
-
-        # for player in self.game_state.game.enemies.players.values():
-        #     if player.id == player_id:
-        #         pass
-        #     else:
-        #         self.pose_obstacle += [self.game_state.get_player_pose(player.id).position]
-
+        for i, player in enumerate(obstacles):
+            if player.id != player_id:
+                self.pose_obstacle[i, :] = player.pose.position.conv_2_np()
         return self.fastpathplanner(self.path).points[1:]
 
-    def is_path_collide(self, path, pose_obstacle=None):
-        collision_bool = 0
-        if pose_obstacle is None:
-            pose_obstacle = self.pose_obstacle
-        if not pose_obstacle:
-            return collision_bool
-        if get_distance(path.start, path.goal) < 0.001:
-            return collision_bool
-        direction = np.array(conv_position_2_list(path.goal - path.start)) / get_distance(path.goal, path.start)
-        for pose_obs in pose_obstacle:
-            vec_robot_2_obs_temp = np.array(conv_position_2_list(pose_obs - path.start))
-            len_along_path_temp = np.dot(vec_robot_2_obs_temp, np.transpose(direction))
+    def is_path_collide(self, path):
+        dist = get_distance(path.start, path.goal)
+        if dist < 0.001:
+            return False
+        #direction = np.array(conv_position_2_list(path.goal - path.start)) / get_distance(path.goal, path.start)
+        pose_start = path.start.conv_2_np()
+        direction = (path.goal.conv_2_np() - pose_start) / dist
+        for pose_obs in self.pose_obstacle:
+            vec_robot_2_obs_temp = pose_obs - pose_start
+            len_along_path_temp = np.dot(vec_robot_2_obs_temp, direction)
             dist_from_path_temp = np.sqrt(np.linalg.norm(vec_robot_2_obs_temp)**2 - len_along_path_temp**2)
             if self.gap_proxy > dist_from_path_temp and len_along_path_temp > 0:
-                collision_bool = 1
-        return collision_bool
+                return True
+        return False
 
     def find_closest_obstacle(self, point, path):
 
@@ -94,8 +81,7 @@ class PathPartitionner(Pathfinder):
 
         closest_obs = None
 
-
-        if not self.pose_obstacle:
+        if self.pose_obstacle is None:
             return [closest_obs, dist_point_obs]
         if get_distance(path.start, path.goal) < 0.001:
             return [closest_obs, dist_point_obs]

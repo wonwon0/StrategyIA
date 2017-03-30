@@ -1,5 +1,5 @@
 import time
-
+import cProfile
 from RULEngine.Debug.debug_interface import DebugInterface, COLOR_ID_MAP, DEFAULT_PATH_TIMEOUT
 from ai.Algorithm.AsPathManager import AsPathManager
 from ai.Algorithm.PathfinderRRT import PathfinderRRT
@@ -47,6 +47,7 @@ class PathfinderModule(Executor):
 
     def _pathfind_ai_commands(self, ai_commands):
         for ai_c in ai_commands:
+            cProfile.runctx('self.pathfinder.get_path(ai_c.robot_id, ai_c.pose_goal)', globals(), locals())
             self.time = time.time()
             path = self.pathfinder.get_path(ai_c.robot_id, ai_c.pose_goal)
             print(time.time() - self.time)
